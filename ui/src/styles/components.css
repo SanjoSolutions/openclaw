@@ -1394,6 +1394,165 @@
   max-width: 100%;
 }
 
+.debug-run-log__header {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.debug-run-log__controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.debug-run-log__field {
+  min-width: min(320px, 100%);
+}
+
+.debug-run-log__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.debug-run-log__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.debug-run-log__tree {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.debug-run-log__session {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.debug-run-log__session-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+  border-left: 3px solid
+    color-mix(in srgb, var(--accent) calc(28% + (var(--debug-depth, 0) * 10%)), transparent);
+  padding-left: calc(14px + (var(--debug-depth, 0) * 14px));
+}
+
+.debug-run-log__session-summary::-webkit-details-marker {
+  display: none;
+}
+
+.debug-run-log__session-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.debug-run-log__session-depth {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.debug-run-log__session-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.debug-run-log__session-body {
+  padding: 0 14px 14px;
+  padding-left: calc(14px + (var(--debug-depth, 0) * 14px));
+}
+
+.debug-run-log__entries {
+  display: grid;
+  gap: 10px;
+}
+
+.debug-run-log__entry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 12px;
+}
+
+.debug-run-log__entry-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.debug-run-log__entry-role {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.debug-run-log__entry-ts {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.debug-run-log__entry-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.debug-run-log__entry-content {
+  margin: 0;
+  max-width: 100%;
+}
+
+.debug-run-log__events {
+  margin-top: 18px;
+}
+
+.debug-run-log__event-list {
+  gap: 10px;
+}
+
+.debug-run-log__event-item {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.debug-run-log__event-meta {
+  min-width: 0;
+  text-align: left;
+}
+
+.debug-run-log__event-payload {
+  margin: 0;
+  max-width: 100%;
+}
+
 /* Cron jobs: allow long payload/state text and keep action buttons inside the card. */
 .cron-job-payload,
 .cron-job-agent,

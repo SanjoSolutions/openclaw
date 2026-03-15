@@ -1,6 +1,9 @@
 import { html, nothing } from "lit";
 import type { EventLogEntry } from "../app-events.ts";
 import { formatEventPayload } from "../presenter.ts";
+import type { SessionsListResult } from "../types.ts";
+import { renderDebugRunLog } from "./debug-run-log.ts";
+import type { SessionLogEntry } from "./usage.ts";
 
 export type DebugProps = {
   loading: boolean;
@@ -14,10 +17,18 @@ export type DebugProps = {
   callParams: string;
   callResult: string | null;
   callError: string | null;
+  currentSessionKey: string;
+  sessions: SessionsListResult | null;
+  runLogRootKey: string;
+  runLogLoading: boolean;
+  runLogError: string | null;
+  runLogLogsByKey: Record<string, SessionLogEntry[] | null>;
   onCallMethodChange: (next: string) => void;
   onCallParamsChange: (next: string) => void;
   onRefresh: () => void;
   onCall: () => void;
+  onRunLogRootKeyChange: (next: string) => void;
+  onRunLogRefresh: () => void;
 };
 
 export function renderDebug(props: DebugProps) {
@@ -126,6 +137,18 @@ export function renderDebug(props: DebugProps) {
         2,
       )}</pre>
     </section>
+
+    ${renderDebugRunLog({
+      currentSessionKey: props.currentSessionKey,
+      rootKey: props.runLogRootKey,
+      sessions: props.sessions,
+      eventLog: props.eventLog,
+      loading: props.runLogLoading,
+      error: props.runLogError,
+      logsByKey: props.runLogLogsByKey,
+      onRootKeyChange: props.onRunLogRootKeyChange,
+      onRefresh: props.onRunLogRefresh,
+    })}
 
     <section class="card" style="margin-top: 18px;">
       <div class="card-title">Event Log</div>

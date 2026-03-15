@@ -415,6 +415,13 @@ export class OpenClawApp extends LitElement {
   @state() debugCallParams = "{}";
   @state() debugCallResult: string | null = null;
   @state() debugCallError: string | null = null;
+  @state() debugRunLogRootKey = "";
+  @state() debugRunLogLoading = false;
+  @state() debugRunLogError: string | null = null;
+  @state() debugRunLogLogsByKey: Record<
+    string,
+    import("./views/usage.js").SessionLogEntry[] | null
+  > = {};
 
   @state() logsLoading = false;
   @state() logsError: string | null = null;

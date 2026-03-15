@@ -282,6 +282,10 @@ export type AppViewState = {
     debugCallParams: string;
     debugCallResult: string | null;
     debugCallError: string | null;
+    debugRunLogRootKey: string;
+    debugRunLogLoading: boolean;
+    debugRunLogError: string | null;
+    debugRunLogLogsByKey: Record<string, SessionLogEntry[] | null>;
     logsLoading: boolean;
     logsError: string | null;
     logsFile: string | null;
