@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import fsPromises from "node:fs/promises";
+import path from "node:path";
 import { execDockerRaw, type ExecDockerRawResult } from "./docker.js";
 import {
   buildPinnedMkdirpPlan,
@@ -63,6 +65,10 @@ export type SandboxFsBridge = {
 
 export function createSandboxFsBridge(params: { sandbox: SandboxContext }): SandboxFsBridge {
   return new SandboxFsBridgeImpl(params.sandbox);
+}
+
+export function createHostSandboxFsBridge(params: { sandbox: SandboxContext }): SandboxFsBridge {
+  return new HostSandboxFsBridge(params.sandbox);
 }
 
 class SandboxFsBridgeImpl implements SandboxFsBridge {
@@ -297,6 +303,125 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
     signal?: AbortSignal,
   ): Promise<ExecDockerRawResult> {
     return await this.runCheckedCommand({ ...plan, signal });
+  }
+
+  private ensureWriteAccess(target: SandboxResolvedFsPath, action: string) {
+    if (!allowsWrites(this.sandbox.workspaceAccess) || !target.writable) {
+      throw new Error(`Sandbox path is read-only; cannot ${action}: ${target.containerPath}`);
+    }
+  }
+
+  private resolveResolvedPath(params: { filePath: string; cwd?: string }): SandboxResolvedFsPath {
+    return resolveSandboxFsPathWithMounts({
+      filePath: params.filePath,
+      cwd: params.cwd ?? this.sandbox.workspaceDir,
+      defaultWorkspaceRoot: this.sandbox.workspaceDir,
+      defaultContainerRoot: this.sandbox.containerWorkdir,
+      mounts: this.mounts,
+    });
+  }
+}
+
+class HostSandboxFsBridge implements SandboxFsBridge {
+  private readonly sandbox: SandboxContext;
+  private readonly mounts: ReturnType<typeof buildSandboxFsMounts>;
+
+  constructor(sandbox: SandboxContext) {
+    this.sandbox = sandbox;
+    this.mounts = buildSandboxFsMounts(sandbox);
+  }
+
+  resolvePath(params: { filePath: string; cwd?: string }): SandboxResolvedPath {
+    const target = this.resolveResolvedPath(params);
+    return {
+      hostPath: target.hostPath,
+      relativePath: target.relativePath,
+      containerPath: target.containerPath,
+    };
+  }
+
+  async readFile(params: {
+    filePath: string;
+    cwd?: string;
+    signal?: AbortSignal;
+  }): Promise<Buffer> {
+    const target = this.resolveResolvedPath(params);
+    return fsPromises.readFile(target.hostPath);
+  }
+
+  async writeFile(params: {
+    filePath: string;
+    cwd?: string;
+    data: Buffer | string;
+    encoding?: BufferEncoding;
+    mkdir?: boolean;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const target = this.resolveResolvedPath(params);
+    this.ensureWriteAccess(target, "write files");
+    if (params.mkdir !== false) {
+      await fsPromises.mkdir(path.dirname(target.hostPath), { recursive: true });
+    }
+    const buffer = Buffer.isBuffer(params.data)
+      ? params.data
+      : Buffer.from(params.data, params.encoding ?? "utf8");
+    await fsPromises.writeFile(target.hostPath, buffer);
+  }
+
+  async mkdirp(params: { filePath: string; cwd?: string; signal?: AbortSignal }): Promise<void> {
+    const target = this.resolveResolvedPath(params);
+    this.ensureWriteAccess(target, "create directories");
+    await fsPromises.mkdir(target.hostPath, { recursive: true });
+  }
+
+  async remove(params: {
+    filePath: string;
+    cwd?: string;
+    recursive?: boolean;
+    force?: boolean;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const target = this.resolveResolvedPath(params);
+    this.ensureWriteAccess(target, "remove files");
+    await fsPromises.rm(target.hostPath, {
+      recursive: params.recursive ?? false,
+      force: params.force ?? false,
+    });
+  }
+
+  async rename(params: {
+    from: string;
+    to: string;
+    cwd?: string;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const source = this.resolveResolvedPath({ filePath: params.from, cwd: params.cwd });
+    const target = this.resolveResolvedPath({ filePath: params.to, cwd: params.cwd });
+    this.ensureWriteAccess(source, "rename files");
+    this.ensureWriteAccess(target, "rename files");
+    await fsPromises.mkdir(path.dirname(target.hostPath), { recursive: true });
+    await fsPromises.rename(source.hostPath, target.hostPath);
+  }
+
+  async stat(params: {
+    filePath: string;
+    cwd?: string;
+    signal?: AbortSignal;
+  }): Promise<SandboxFsStat | null> {
+    const target = this.resolveResolvedPath(params);
+    try {
+      const stats = await fsPromises.stat(target.hostPath);
+      return {
+        type: stats.isDirectory() ? "directory" : stats.isFile() ? "file" : "other",
+        size: stats.size,
+        mtimeMs: stats.mtimeMs,
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return null;
+      }
+      throw error;
+    }
   }
 
   private ensureWriteAccess(target: SandboxResolvedFsPath, action: string) {

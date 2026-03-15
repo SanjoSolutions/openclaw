@@ -84,4 +84,30 @@ describe("resolveSandboxContext", () => {
       }),
     ).toBeNull();
   }, 15_000);
+
+  it("resolves an anthropic-sandbox-runtime context without Docker", async () => {
+    const cfg: OpenClawConfig = {
+      agents: {
+        defaults: {
+          sandbox: {
+            mode: "all",
+            scope: "session",
+            backend: "anthropic-sandbox-runtime",
+          },
+        },
+        list: [{ id: "main" }],
+      },
+    };
+
+    const result = await resolveSandboxContext({
+      config: cfg,
+      sessionKey: "agent:main:work",
+      workspaceDir: "/tmp/openclaw-test",
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.backend).toBe("anthropic-sandbox-runtime");
+    expect(result?.containerWorkdir).toBe("/workspace");
+    expect(result?.fsBridge).toBeTruthy();
+  }, 15_000);
 });

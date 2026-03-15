@@ -228,6 +228,67 @@ export const FIELD_HELP: Record<string, string> = {
     "Optional ACP session mode default for this agent (persistent or oneshot).",
   "agents.list[].runtime.acp.cwd":
     "Optional default working directory for this agent's ACP sessions.",
+  "agents.defaults.sandbox.backend":
+    'Sandbox backend selector: "docker" for the existing container runtime, or "anthropic-sandbox-runtime" for Anthropic sandbox-runtime based host execution.',
+  "agents.defaults.sandbox.srt":
+    'Anthropic sandbox-runtime settings used when agents.defaults.sandbox.backend="anthropic-sandbox-runtime". Use this to control the srt command plus filesystem/network allowlists.',
+  "agents.defaults.sandbox.srt.command":
+    "Path or command name for the `srt` CLI. Leave unset to resolve `srt` from PATH.",
+  "agents.defaults.sandbox.srt.network":
+    "sandbox-runtime network policy. Keep allowedDomains narrow because srt denies network by default and only permits explicitly allowed destinations.",
+  "agents.defaults.sandbox.srt.network.allowedDomains":
+    "Allowlist of remote domains reachable from sandbox-runtime sessions.",
+  "agents.defaults.sandbox.srt.network.deniedDomains":
+    "Denylist of remote domains checked before allowedDomains for sandbox-runtime sessions.",
+  "agents.defaults.sandbox.srt.network.allowUnixSockets":
+    "Allowlisted Unix socket paths exposed to sandbox-runtime sessions.",
+  "agents.defaults.sandbox.srt.network.allowAllUnixSockets":
+    "Disable Unix socket blocking for sandbox-runtime sessions. Keep off unless you fully trust the runtime and the reachable sockets.",
+  "agents.defaults.sandbox.srt.network.allowLocalBinding":
+    "Allow sandbox-runtime sessions to bind local ports. Leave off unless the sandboxed process must listen on localhost.",
+  "agents.defaults.sandbox.srt.network.enableWeakerNestedSandbox":
+    "Enable sandbox-runtime's weaker nested Linux mode for containerized hosts. Use only when stronger namespace isolation is unavailable.",
+  "agents.defaults.sandbox.srt.filesystem":
+    "sandbox-runtime filesystem allow/deny rules. OpenClaw still auto-allows the active workspace and temp directories it needs for sandboxed execution.",
+  "agents.defaults.sandbox.srt.filesystem.denyRead":
+    "Paths denied for reads inside sandbox-runtime sessions.",
+  "agents.defaults.sandbox.srt.filesystem.allowRead":
+    "Paths re-allowed for reads inside denied regions for sandbox-runtime sessions.",
+  "agents.defaults.sandbox.srt.filesystem.allowWrite":
+    "Additional writable paths for sandbox-runtime sessions beyond the active workspace and temp directories.",
+  "agents.defaults.sandbox.srt.filesystem.denyWrite":
+    "Paths denied for writes inside otherwise writable sandbox-runtime regions.",
+  "agents.defaults.sandbox.srt.filesystem.mandatoryDenySearchDepth":
+    "Linux-only search depth for sandbox-runtime mandatory deny scanning in writable trees.",
+  "agents.list[].sandbox.backend":
+    'Per-agent override for the sandbox backend: "docker" or "anthropic-sandbox-runtime".',
+  "agents.list[].sandbox.srt":
+    'Per-agent Anthropic sandbox-runtime settings used when this agent runs with sandbox.backend="anthropic-sandbox-runtime".',
+  "agents.list[].sandbox.srt.command": "Per-agent override for the `srt` CLI command path/name.",
+  "agents.list[].sandbox.srt.network": "Per-agent sandbox-runtime network policy.",
+  "agents.list[].sandbox.srt.network.allowedDomains":
+    "Per-agent allowlist of remote domains reachable from sandbox-runtime sessions.",
+  "agents.list[].sandbox.srt.network.deniedDomains":
+    "Per-agent denylist of remote domains checked before allowedDomains for sandbox-runtime sessions.",
+  "agents.list[].sandbox.srt.network.allowUnixSockets":
+    "Per-agent allowlisted Unix socket paths exposed to sandbox-runtime sessions.",
+  "agents.list[].sandbox.srt.network.allowAllUnixSockets":
+    "Per-agent override to disable Unix socket blocking for sandbox-runtime sessions.",
+  "agents.list[].sandbox.srt.network.allowLocalBinding":
+    "Per-agent override to allow sandbox-runtime sessions to bind local ports.",
+  "agents.list[].sandbox.srt.network.enableWeakerNestedSandbox":
+    "Per-agent override for sandbox-runtime's weaker nested Linux mode.",
+  "agents.list[].sandbox.srt.filesystem": "Per-agent sandbox-runtime filesystem allow/deny rules.",
+  "agents.list[].sandbox.srt.filesystem.denyRead":
+    "Per-agent paths denied for reads inside sandbox-runtime sessions.",
+  "agents.list[].sandbox.srt.filesystem.allowRead":
+    "Per-agent paths re-allowed for reads inside denied regions for sandbox-runtime sessions.",
+  "agents.list[].sandbox.srt.filesystem.allowWrite":
+    "Per-agent additional writable paths for sandbox-runtime sessions.",
+  "agents.list[].sandbox.srt.filesystem.denyWrite":
+    "Per-agent paths denied for writes inside otherwise writable sandbox-runtime regions.",
+  "agents.list[].sandbox.srt.filesystem.mandatoryDenySearchDepth":
+    "Per-agent Linux-only search depth for sandbox-runtime mandatory deny scanning.",
   "agents.list[].identity.avatar":
     "Avatar image path (relative to the agent workspace only) or a remote URL/data URL.",
   "agents.defaults.heartbeat.suppressToolErrorWarnings":

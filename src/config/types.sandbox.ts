@@ -1,3 +1,5 @@
+export type SandboxBackend = "docker" | "anthropic-sandbox-runtime";
+
 export type SandboxDockerSettings = {
   /** Docker image to use for sandbox containers. */
   image?: string;
@@ -57,6 +59,41 @@ export type SandboxDockerSettings = {
    * Default behavior blocks container namespace joins to preserve sandbox isolation.
    */
   dangerouslyAllowContainerNamespaceJoin?: boolean;
+};
+
+export type SandboxSrtNetworkSettings = {
+  /** Allowlist of remote domains the sandboxed process may connect to. */
+  allowedDomains?: string[];
+  /** Denylist of remote domains checked before allowedDomains. */
+  deniedDomains?: string[];
+  /** Allowlisted Unix socket paths for local IPC. */
+  allowUnixSockets?: string[];
+  /** Disable Unix socket blocking entirely. */
+  allowAllUnixSockets?: boolean;
+  /** Allow binding to local ports. */
+  allowLocalBinding?: boolean;
+  /** Allow weaker nested Linux sandboxing inside Docker/other containers. */
+  enableWeakerNestedSandbox?: boolean;
+};
+
+export type SandboxSrtFilesystemSettings = {
+  /** Paths to deny for reads. */
+  denyRead?: string[];
+  /** Paths to re-allow for reads inside denied regions. */
+  allowRead?: string[];
+  /** Paths to allow for writes. */
+  allowWrite?: string[];
+  /** Paths to deny for writes inside allowed regions. */
+  denyWrite?: string[];
+  /** Linux-only depth for mandatory deny scans in writable trees. */
+  mandatoryDenySearchDepth?: number;
+};
+
+export type SandboxSrtSettings = {
+  /** Path or command name for the Anthropic sandbox runtime CLI. */
+  command?: string;
+  network?: SandboxSrtNetworkSettings;
+  filesystem?: SandboxSrtFilesystemSettings;
 };
 
 export type SandboxBrowserSettings = {

@@ -1,3 +1,4 @@
+import type { SandboxBackend } from "../../config/types.sandbox.js";
 import type { SandboxFsBridge } from "./fs-bridge.js";
 import type { SandboxDockerConfig } from "./types.docker.js";
 
@@ -28,6 +29,29 @@ export type SandboxToolPolicyResolved = {
 
 export type SandboxWorkspaceAccess = "none" | "ro" | "rw";
 
+export type SandboxSrtNetworkConfig = {
+  allowedDomains: string[];
+  deniedDomains: string[];
+  allowUnixSockets: string[];
+  allowAllUnixSockets: boolean;
+  allowLocalBinding: boolean;
+  enableWeakerNestedSandbox: boolean;
+};
+
+export type SandboxSrtFilesystemConfig = {
+  denyRead: string[];
+  allowRead: string[];
+  allowWrite: string[];
+  denyWrite: string[];
+  mandatoryDenySearchDepth?: number;
+};
+
+export type SandboxSrtConfig = {
+  command: string;
+  network: SandboxSrtNetworkConfig;
+  filesystem: SandboxSrtFilesystemConfig;
+};
+
 export type SandboxBrowserConfig = {
   enabled: boolean;
   image: string;
@@ -53,11 +77,13 @@ export type SandboxPruneConfig = {
 export type SandboxScope = "session" | "agent" | "shared";
 
 export type SandboxConfig = {
+  backend?: SandboxBackend;
   mode: "off" | "non-main" | "all";
   scope: SandboxScope;
   workspaceAccess: SandboxWorkspaceAccess;
   workspaceRoot: string;
   docker: SandboxDockerConfig;
+  srt?: SandboxSrtConfig;
   browser: SandboxBrowserConfig;
   tools: SandboxToolPolicy;
   prune: SandboxPruneConfig;
@@ -71,6 +97,7 @@ export type SandboxBrowserContext = {
 
 export type SandboxContext = {
   enabled: boolean;
+  backend?: SandboxBackend;
   sessionKey: string;
   workspaceDir: string;
   agentWorkspaceDir: string;
@@ -78,6 +105,7 @@ export type SandboxContext = {
   containerName: string;
   containerWorkdir: string;
   docker: SandboxDockerConfig;
+  srt?: SandboxSrtConfig;
   tools: SandboxToolPolicy;
   browserAllowHostControl: boolean;
   browser?: SandboxBrowserContext;

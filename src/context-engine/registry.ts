@@ -13,6 +13,11 @@ type RegisterContextEngineForOwnerOptions = {
   allowSameOwnerRefresh?: boolean;
 };
 
+type RegisterContextEngineOptions = {
+  owner?: string;
+  allowSameOwnerRefresh?: boolean;
+};
+
 // ---------------------------------------------------------------------------
 // Registry (module-level singleton)
 // ---------------------------------------------------------------------------
@@ -48,7 +53,9 @@ function getContextEngineRegistryState(): ContextEngineRegistryState {
 function requireContextEngineOwner(owner: string): string {
   const normalizedOwner = owner.trim();
   if (!normalizedOwner) {
-    throw new Error(`registerContextEngineForOwner: owner must be a non-empty string, got ${JSON.stringify(owner)}`);
+    throw new Error(
+      `registerContextEngineForOwner: owner must be a non-empty string, got ${JSON.stringify(owner)}`,
+    );
   }
   return normalizedOwner;
 }
@@ -91,8 +98,14 @@ export function registerContextEngineForOwner(
 export function registerContextEngine(
   id: string,
   factory: ContextEngineFactory,
+  opts?: RegisterContextEngineOptions,
 ): ContextEngineRegistrationResult {
-  return registerContextEngineForOwner(id, factory, PUBLIC_CONTEXT_ENGINE_OWNER);
+  return registerContextEngineForOwner(
+    id,
+    factory,
+    opts?.owner ?? PUBLIC_CONTEXT_ENGINE_OWNER,
+    opts?.owner ? { allowSameOwnerRefresh: opts.allowSameOwnerRefresh ?? true } : undefined,
+  );
 }
 
 /**

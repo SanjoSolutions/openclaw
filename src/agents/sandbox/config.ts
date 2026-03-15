@@ -1,4 +1,5 @@
 import type { OpenClawConfig } from "../../config/config.js";
+import type { SandboxBackend } from "../../config/types.sandbox.js";
 import { resolveAgentConfig } from "../agent-scope.js";
 import {
   DEFAULT_SANDBOX_BROWSER_AUTOSTART_TIMEOUT_MS,
@@ -21,6 +22,7 @@ import type {
   SandboxConfig,
   SandboxDockerConfig,
   SandboxPruneConfig,
+  SandboxSrtConfig,
   SandboxScope,
 } from "./types.js";
 
@@ -119,6 +121,75 @@ export function resolveSandboxDockerConfig(params: {
   };
 }
 
+export function resolveSandboxSrtConfig(params: {
+  scope: SandboxScope;
+  globalSrt?: {
+    command?: string;
+    network?: {
+      allowedDomains?: string[];
+      deniedDomains?: string[];
+      allowUnixSockets?: string[];
+      allowAllUnixSockets?: boolean;
+      allowLocalBinding?: boolean;
+      enableWeakerNestedSandbox?: boolean;
+    };
+    filesystem?: {
+      denyRead?: string[];
+      allowRead?: string[];
+      allowWrite?: string[];
+      denyWrite?: string[];
+      mandatoryDenySearchDepth?: number;
+    };
+  };
+  agentSrt?: {
+    command?: string;
+    network?: {
+      allowedDomains?: string[];
+      deniedDomains?: string[];
+      allowUnixSockets?: string[];
+      allowAllUnixSockets?: boolean;
+      allowLocalBinding?: boolean;
+      enableWeakerNestedSandbox?: boolean;
+    };
+    filesystem?: {
+      denyRead?: string[];
+      allowRead?: string[];
+      allowWrite?: string[];
+      denyWrite?: string[];
+      mandatoryDenySearchDepth?: number;
+    };
+  };
+}): SandboxSrtConfig {
+  const agentSrt = params.scope === "shared" ? undefined : params.agentSrt;
+  const globalSrt = params.globalSrt;
+  return {
+    command: agentSrt?.command ?? globalSrt?.command ?? "srt",
+    network: {
+      allowedDomains: agentSrt?.network?.allowedDomains ?? globalSrt?.network?.allowedDomains ?? [],
+      deniedDomains: agentSrt?.network?.deniedDomains ?? globalSrt?.network?.deniedDomains ?? [],
+      allowUnixSockets:
+        agentSrt?.network?.allowUnixSockets ?? globalSrt?.network?.allowUnixSockets ?? [],
+      allowAllUnixSockets:
+        agentSrt?.network?.allowAllUnixSockets ?? globalSrt?.network?.allowAllUnixSockets ?? false,
+      allowLocalBinding:
+        agentSrt?.network?.allowLocalBinding ?? globalSrt?.network?.allowLocalBinding ?? false,
+      enableWeakerNestedSandbox:
+        agentSrt?.network?.enableWeakerNestedSandbox ??
+        globalSrt?.network?.enableWeakerNestedSandbox ??
+        false,
+    },
+    filesystem: {
+      denyRead: agentSrt?.filesystem?.denyRead ?? globalSrt?.filesystem?.denyRead ?? [],
+      allowRead: agentSrt?.filesystem?.allowRead ?? globalSrt?.filesystem?.allowRead ?? [],
+      allowWrite: agentSrt?.filesystem?.allowWrite ?? globalSrt?.filesystem?.allowWrite ?? [],
+      denyWrite: agentSrt?.filesystem?.denyWrite ?? globalSrt?.filesystem?.denyWrite ?? [],
+      mandatoryDenySearchDepth:
+        agentSrt?.filesystem?.mandatoryDenySearchDepth ??
+        globalSrt?.filesystem?.mandatoryDenySearchDepth,
+    },
+  };
+}
+
 export function resolveSandboxBrowserConfig(params: {
   scope: SandboxScope;
   globalBrowser?: Partial<SandboxBrowserConfig>;
@@ -186,8 +257,10 @@ export function resolveSandboxConfigForAgent(
   });
 
   const toolPolicy = resolveSandboxToolPolicyForAgent(cfg, agentId);
+  const backend: SandboxBackend = agentSandbox?.backend ?? agent?.backend ?? "docker";
 
   return {
+    backend,
     mode: agentSandbox?.mode ?? agent?.mode ?? "off",
     scope,
     workspaceAccess: agentSandbox?.workspaceAccess ?? agent?.workspaceAccess ?? "none",
@@ -197,6 +270,11 @@ export function resolveSandboxConfigForAgent(
       scope,
       globalDocker: agent?.docker,
       agentDocker: agentSandbox?.docker,
+    }),
+    srt: resolveSandboxSrtConfig({
+      scope,
+      globalSrt: agent?.srt,
+      agentSrt: agentSandbox?.srt,
     }),
     browser: resolveSandboxBrowserConfig({
       scope,

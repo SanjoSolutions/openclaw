@@ -4,25 +4,40 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { sliceUtf16Safe } from "../utils.js";
 import { assertSandboxPath } from "./sandbox-paths.js";
+import type { SandboxSrtConfig } from "./sandbox/types.js";
 
 const CHUNK_LIMIT = 8 * 1024;
 
-export type BashSandboxConfig = {
-  containerName: string;
-  workspaceDir: string;
-  containerWorkdir: string;
-  env?: Record<string, string>;
-};
+export type BashSandboxConfig =
+  | {
+      backend?: "docker";
+      containerName: string;
+      workspaceDir: string;
+      containerWorkdir: string;
+      processHomeDir?: string;
+      env?: Record<string, string>;
+    }
+  | {
+      backend: "anthropic-sandbox-runtime";
+      workspaceDir: string;
+      agentWorkspaceDir: string;
+      workspaceAccess: "none" | "ro" | "rw";
+      containerWorkdir: string;
+      processHomeDir: string;
+      env?: Record<string, string>;
+      binds?: string[];
+      srt: SandboxSrtConfig;
+    };
 
 export function buildSandboxEnv(params: {
   defaultPath: string;
   paramsEnv?: Record<string, string>;
   sandboxEnv?: Record<string, string>;
-  containerWorkdir: string;
+  homeDir: string;
 }) {
   const env: Record<string, string> = {
     PATH: params.defaultPath,
-    HOME: params.containerWorkdir,
+    HOME: params.homeDir,
   };
   for (const [key, value] of Object.entries(params.sandboxEnv ?? {})) {
     env[key] = value;

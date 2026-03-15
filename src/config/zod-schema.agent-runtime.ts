@@ -204,6 +204,38 @@ export const SandboxDockerSchema = z
   })
   .optional();
 
+export const SandboxSrtNetworkSchema = z
+  .object({
+    allowedDomains: z.array(z.string()).optional(),
+    deniedDomains: z.array(z.string()).optional(),
+    allowUnixSockets: z.array(z.string()).optional(),
+    allowAllUnixSockets: z.boolean().optional(),
+    allowLocalBinding: z.boolean().optional(),
+    enableWeakerNestedSandbox: z.boolean().optional(),
+  })
+  .strict()
+  .optional();
+
+export const SandboxSrtFilesystemSchema = z
+  .object({
+    denyRead: z.array(z.string()).optional(),
+    allowRead: z.array(z.string()).optional(),
+    allowWrite: z.array(z.string()).optional(),
+    denyWrite: z.array(z.string()).optional(),
+    mandatoryDenySearchDepth: z.number().int().positive().optional(),
+  })
+  .strict()
+  .optional();
+
+export const SandboxSrtSchema = z
+  .object({
+    command: z.string().optional(),
+    network: SandboxSrtNetworkSchema,
+    filesystem: SandboxSrtFilesystemSchema,
+  })
+  .strict()
+  .optional();
+
 export const SandboxBrowserSchema = z
   .object({
     enabled: z.boolean().optional(),
@@ -495,6 +527,7 @@ const ToolLoopDetectionSchema = z
 
 export const AgentSandboxSchema = z
   .object({
+    backend: z.union([z.literal("docker"), z.literal("anthropic-sandbox-runtime")]).optional(),
     mode: z.union([z.literal("off"), z.literal("non-main"), z.literal("all")]).optional(),
     workspaceAccess: z.union([z.literal("none"), z.literal("ro"), z.literal("rw")]).optional(),
     sessionToolsVisibility: z.union([z.literal("spawned"), z.literal("all")]).optional(),
@@ -502,6 +535,7 @@ export const AgentSandboxSchema = z
     perSession: z.boolean().optional(),
     workspaceRoot: z.string().optional(),
     docker: SandboxDockerSchema,
+    srt: SandboxSrtSchema,
     browser: SandboxBrowserSchema,
     prune: SandboxPruneSchema,
   })
@@ -518,6 +552,13 @@ export const AgentSandboxSchema = z
         message:
           'Sandbox security: browser network mode "container:*" is blocked by default. ' +
           "Set sandbox.docker.dangerouslyAllowContainerNamespaceJoin=true only when you fully trust this runtime.",
+      });
+    }
+    if (data.backend === "anthropic-sandbox-runtime" && data.browser?.enabled) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["browser", "enabled"],
+        message: 'Sandbox browser containers are only supported with sandbox.backend="docker".',
       });
     }
   })

@@ -182,6 +182,27 @@ export const FIELD_LABELS: Record<string, string> = {
   "tools.exec.security": "Exec Security",
   "tools.exec.ask": "Exec Ask",
   "tools.exec.node": "Exec Node Binding",
+  "agents.defaults.sandbox.backend": "Sandbox Backend",
+  "agents.defaults.sandbox.srt": "Anthropic Sandbox Runtime",
+  "agents.defaults.sandbox.srt.command": "Anthropic Sandbox Runtime Command",
+  "agents.defaults.sandbox.srt.network": "Anthropic Sandbox Runtime Network",
+  "agents.defaults.sandbox.srt.network.allowedDomains": "Anthropic Sandbox Runtime Allowed Domains",
+  "agents.defaults.sandbox.srt.network.deniedDomains": "Anthropic Sandbox Runtime Denied Domains",
+  "agents.defaults.sandbox.srt.network.allowUnixSockets":
+    "Anthropic Sandbox Runtime Allowed Unix Sockets",
+  "agents.defaults.sandbox.srt.network.allowAllUnixSockets":
+    "Anthropic Sandbox Runtime Allow All Unix Sockets",
+  "agents.defaults.sandbox.srt.network.allowLocalBinding":
+    "Anthropic Sandbox Runtime Allow Local Binding",
+  "agents.defaults.sandbox.srt.network.enableWeakerNestedSandbox":
+    "Anthropic Sandbox Runtime Weaker Nested Sandbox",
+  "agents.defaults.sandbox.srt.filesystem": "Anthropic Sandbox Runtime Filesystem",
+  "agents.defaults.sandbox.srt.filesystem.denyRead": "Anthropic Sandbox Runtime Deny Read",
+  "agents.defaults.sandbox.srt.filesystem.allowRead": "Anthropic Sandbox Runtime Allow Read",
+  "agents.defaults.sandbox.srt.filesystem.allowWrite": "Anthropic Sandbox Runtime Allow Write",
+  "agents.defaults.sandbox.srt.filesystem.denyWrite": "Anthropic Sandbox Runtime Deny Write",
+  "agents.defaults.sandbox.srt.filesystem.mandatoryDenySearchDepth":
+    "Anthropic Sandbox Runtime Mandatory Deny Search Depth",
   "tools.agentToAgent": "Agent-to-Agent Tool Access",
   "tools.agentToAgent.enabled": "Enable Agent-to-Agent Tool",
   "tools.agentToAgent.allow": "Agent-to-Agent Target Allowlist",
@@ -207,6 +228,29 @@ export const FIELD_LABELS: Record<string, string> = {
   "approvals.exec.targets[].to": "Approval Target Destination",
   "approvals.exec.targets[].accountId": "Approval Target Account ID",
   "approvals.exec.targets[].threadId": "Approval Target Thread ID",
+  "agents.list[].sandbox.backend": "Agent Sandbox Backend",
+  "agents.list[].sandbox.srt": "Agent Anthropic Sandbox Runtime",
+  "agents.list[].sandbox.srt.command": "Agent Anthropic Sandbox Runtime Command",
+  "agents.list[].sandbox.srt.network": "Agent Anthropic Sandbox Runtime Network",
+  "agents.list[].sandbox.srt.network.allowedDomains":
+    "Agent Anthropic Sandbox Runtime Allowed Domains",
+  "agents.list[].sandbox.srt.network.deniedDomains":
+    "Agent Anthropic Sandbox Runtime Denied Domains",
+  "agents.list[].sandbox.srt.network.allowUnixSockets":
+    "Agent Anthropic Sandbox Runtime Allowed Unix Sockets",
+  "agents.list[].sandbox.srt.network.allowAllUnixSockets":
+    "Agent Anthropic Sandbox Runtime Allow All Unix Sockets",
+  "agents.list[].sandbox.srt.network.allowLocalBinding":
+    "Agent Anthropic Sandbox Runtime Allow Local Binding",
+  "agents.list[].sandbox.srt.network.enableWeakerNestedSandbox":
+    "Agent Anthropic Sandbox Runtime Weaker Nested Sandbox",
+  "agents.list[].sandbox.srt.filesystem": "Agent Anthropic Sandbox Runtime Filesystem",
+  "agents.list[].sandbox.srt.filesystem.denyRead": "Agent Anthropic Sandbox Runtime Deny Read",
+  "agents.list[].sandbox.srt.filesystem.allowRead": "Agent Anthropic Sandbox Runtime Allow Read",
+  "agents.list[].sandbox.srt.filesystem.allowWrite": "Agent Anthropic Sandbox Runtime Allow Write",
+  "agents.list[].sandbox.srt.filesystem.denyWrite": "Agent Anthropic Sandbox Runtime Deny Write",
+  "agents.list[].sandbox.srt.filesystem.mandatoryDenySearchDepth":
+    "Agent Anthropic Sandbox Runtime Mandatory Deny Search Depth",
   "tools.message.allowCrossContextSend": "Allow Cross-Context Messaging",
   "tools.message.crossContext.allowWithinProvider": "Allow Cross-Context (Same Provider)",
   "tools.message.crossContext.allowAcrossProviders": "Allow Cross-Context (Across Providers)",

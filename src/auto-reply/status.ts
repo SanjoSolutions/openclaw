@@ -133,7 +133,11 @@ function resolveRuntimeLabel(
     if (sandboxMode === "off") {
       return "direct";
     }
-    const runtime = runtimeStatus.sandboxed ? "docker" : sessionKey ? "direct" : "unknown";
+    const runtime = runtimeStatus.sandboxed
+      ? runtimeStatus.backend
+      : sessionKey
+        ? "direct"
+        : "unknown";
     return `${runtime}/${sandboxMode}`;
   }
 
@@ -160,7 +164,11 @@ function resolveRuntimeLabel(
     });
     return sessionKey !== mainKey.trim();
   })();
-  const runtime = sandboxed ? "docker" : sessionKey ? "direct" : "unknown";
+  const runtime = sandboxed
+    ? (args.agent?.sandbox?.backend ?? args.config?.agents?.defaults?.sandbox?.backend ?? "docker")
+    : sessionKey
+      ? "direct"
+      : "unknown";
   return `${runtime}/${sandboxMode}`;
 }
 
