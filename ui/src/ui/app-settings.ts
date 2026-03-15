@@ -14,6 +14,7 @@ import { loadAgents } from "./controllers/agents.ts";
 import { loadChannels } from "./controllers/channels.ts";
 import { loadConfig, loadConfigSchema } from "./controllers/config.ts";
 import { loadCronJobs, loadCronRuns, loadCronStatus } from "./controllers/cron.ts";
+import { loadDebugRunLog } from "./controllers/debug-run-log.ts";
 import { loadDebug } from "./controllers/debug.ts";
 import { loadDevices } from "./controllers/devices.ts";
 import { loadExecApprovals } from "./controllers/exec-approvals.ts";
@@ -51,6 +52,7 @@ type SettingsHost = {
   logsAtBottom: boolean;
   eventLog: unknown[];
   eventLogBuffer: unknown[];
+  debugRunLogRootKey?: string;
   basePath: string;
   agentsList?: AgentsListResult | null;
   agentsSelectedId?: string | null;
@@ -276,6 +278,15 @@ export async function refreshActiveTab(host: SettingsHost) {
   }
   if (host.tab === "debug") {
     await loadDebug(host as unknown as OpenClawApp);
+    await loadSessions(host as unknown as OpenClawApp, {
+      activeMinutes: 0,
+      limit: 0,
+      includeGlobal: true,
+      includeUnknown: true,
+    });
+    await loadDebugRunLog(host as unknown as Parameters<typeof loadDebugRunLog>[0], {
+      rootKey: host.debugRunLogRootKey || host.sessionKey,
+    });
     host.eventLog = host.eventLogBuffer;
   }
   if (host.tab === "logs") {

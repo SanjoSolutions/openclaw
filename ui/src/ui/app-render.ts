@@ -51,6 +51,7 @@ import {
   updateCronJobsFilter,
   updateCronRunsFilter,
 } from "./controllers/cron.ts";
+import { loadDebugRunLog } from "./controllers/debug-run-log.ts";
 import { loadDebug, callDebugMethod } from "./controllers/debug.ts";
 import {
   approveDevicePairing,
@@ -1880,10 +1881,24 @@ export function renderApp(state: AppViewState) {
                   callParams: state.debugCallParams,
                   callResult: state.debugCallResult,
                   callError: state.debugCallError,
+                  currentSessionKey: state.sessionKey,
+                  sessions: state.sessionsResult,
+                  runLogRootKey: state.debugRunLogRootKey,
+                  runLogLoading: state.debugRunLogLoading,
+                  runLogError: state.debugRunLogError,
+                  runLogLogsByKey: state.debugRunLogLogsByKey,
                   onCallMethodChange: (next) => (state.debugCallMethod = next),
                   onCallParamsChange: (next) => (state.debugCallParams = next),
                   onRefresh: () => loadDebug(state),
                   onCall: () => callDebugMethod(state),
+                  onRunLogRootKeyChange: async (next) => {
+                    state.debugRunLogRootKey = next;
+                    await loadDebugRunLog(state, { rootKey: next });
+                  },
+                  onRunLogRefresh: () =>
+                    loadDebugRunLog(state, {
+                      rootKey: state.debugRunLogRootKey || state.sessionKey,
+                    }),
                 }),
               )
             : nothing
