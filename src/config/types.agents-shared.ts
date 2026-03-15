@@ -1,7 +1,9 @@
 import type {
+  SandboxBackend,
   SandboxBrowserSettings,
   SandboxDockerSettings,
   SandboxPruneSettings,
+  SandboxSrtSettings,
 } from "./types.sandbox.js";
 
 export type AgentModelConfig =
@@ -14,6 +16,7 @@ export type AgentModelConfig =
     };
 
 export type AgentSandboxConfig = {
+  backend?: SandboxBackend;
   mode?: "off" | "non-main" | "all";
   /** Agent workspace access inside the sandbox. */
   workspaceAccess?: "none" | "ro" | "rw";
@@ -30,6 +33,8 @@ export type AgentSandboxConfig = {
   workspaceRoot?: string;
   /** Docker-specific sandbox settings. */
   docker?: SandboxDockerSettings;
+  /** Anthropic sandbox-runtime settings. */
+  srt?: SandboxSrtSettings;
   /** Optional sandboxed browser settings. */
   browser?: SandboxBrowserSettings;
   /** Auto-prune sandbox settings. */

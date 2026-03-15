@@ -10,10 +10,10 @@ import { DEFAULT_AGENT_WORKSPACE_DIR } from "../workspace.js";
 import { ensureSandboxBrowser } from "./browser.js";
 import { resolveSandboxConfigForAgent } from "./config.js";
 import { ensureSandboxContainer } from "./docker.js";
-import { createSandboxFsBridge } from "./fs-bridge.js";
+import { createHostSandboxFsBridge, createSandboxFsBridge } from "./fs-bridge.js";
 import { maybePruneSandboxes } from "./prune.js";
 import { resolveSandboxRuntimeStatus } from "./runtime-status.js";
-import { resolveSandboxScopeKey, resolveSandboxWorkspaceDir } from "./shared.js";
+import { resolveSandboxScopeKey, resolveSandboxWorkspaceDir, slugifySessionKey } from "./shared.js";
 import type { SandboxContext, SandboxDockerConfig, SandboxWorkspaceInfo } from "./types.js";
 import { ensureSandboxWorkspace } from "./workspace.js";
 
@@ -130,44 +130,55 @@ export async function resolveSandboxContext(params: {
     workspaceDir,
   });
   const resolvedCfg = docker === cfg.docker ? cfg : { ...cfg, docker };
-
-  const containerName = await ensureSandboxContainer({
-    sessionKey: rawSessionKey,
-    workspaceDir,
-    agentWorkspaceDir,
-    cfg: resolvedCfg,
-  });
+  const containerName =
+    resolvedCfg.backend === "docker"
+      ? await ensureSandboxContainer({
+          sessionKey: rawSessionKey,
+          workspaceDir,
+          agentWorkspaceDir,
+          cfg: resolvedCfg,
+        })
+      : `openclaw-srt-${slugifySessionKey(resolveSandboxScopeKey(resolvedCfg.scope, rawSessionKey))}`;
 
   const evaluateEnabled =
     params.config?.browser?.evaluateEnabled ?? DEFAULT_BROWSER_EVALUATE_ENABLED;
 
-  const bridgeAuth = cfg.browser.enabled
-    ? await (async () => {
-        // Sandbox browser bridge server runs on a loopback TCP port; always wire up
-        // the same auth that loopback browser clients will send (token/password).
-        const cfgForAuth = params.config ?? loadConfig();
-        let browserAuth = resolveBrowserControlAuth(cfgForAuth);
-        try {
-          const ensured = await ensureBrowserControlAuth({ cfg: cfgForAuth });
-          browserAuth = ensured.auth;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : JSON.stringify(error);
-          defaultRuntime.error?.(`Sandbox browser auth ensure failed: ${message}`);
-        }
-        return browserAuth;
-      })()
-    : undefined;
-  const browser = await ensureSandboxBrowser({
-    scopeKey,
-    workspaceDir,
-    agentWorkspaceDir,
-    cfg: resolvedCfg,
-    evaluateEnabled,
-    bridgeAuth,
-  });
+  if (resolvedCfg.backend === "anthropic-sandbox-runtime" && cfg.browser.enabled) {
+    throw new Error('Sandbox browser containers require sandbox.backend="docker".');
+  }
+
+  const bridgeAuth =
+    resolvedCfg.backend === "docker" && cfg.browser.enabled
+      ? await (async () => {
+          // Sandbox browser bridge server runs on a loopback TCP port; always wire up
+          // the same auth that loopback browser clients will send (token/password).
+          const cfgForAuth = params.config ?? loadConfig();
+          let browserAuth = resolveBrowserControlAuth(cfgForAuth);
+          try {
+            const ensured = await ensureBrowserControlAuth({ cfg: cfgForAuth });
+            browserAuth = ensured.auth;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : JSON.stringify(error);
+            defaultRuntime.error?.(`Sandbox browser auth ensure failed: ${message}`);
+          }
+          return browserAuth;
+        })()
+      : undefined;
+  const browser =
+    resolvedCfg.backend === "docker"
+      ? await ensureSandboxBrowser({
+          scopeKey,
+          workspaceDir,
+          agentWorkspaceDir,
+          cfg: resolvedCfg,
+          evaluateEnabled,
+          bridgeAuth,
+        })
+      : null;
 
   const sandboxContext: SandboxContext = {
     enabled: true,
+    backend: resolvedCfg.backend,
     sessionKey: rawSessionKey,
     workspaceDir,
     agentWorkspaceDir,
@@ -175,12 +186,16 @@ export async function resolveSandboxContext(params: {
     containerName,
     containerWorkdir: resolvedCfg.docker.workdir,
     docker: resolvedCfg.docker,
+    srt: resolvedCfg.srt,
     tools: resolvedCfg.tools,
     browserAllowHostControl: resolvedCfg.browser.allowHostControl,
     browser: browser ?? undefined,
   };
 
-  sandboxContext.fsBridge = createSandboxFsBridge({ sandbox: sandboxContext });
+  sandboxContext.fsBridge =
+    resolvedCfg.backend === "docker"
+      ? createSandboxFsBridge({ sandbox: sandboxContext })
+      : createHostSandboxFsBridge({ sandbox: sandboxContext });
 
   return sandboxContext;
 }

@@ -33,6 +33,11 @@ import {
   readEnvInt,
 } from "./bash-tools.shared.js";
 import { buildCursorPositionResponse, stripDsrRequests } from "./pty-dsr.js";
+import {
+  buildSandboxSrtExecArgv,
+  createSandboxSrtSettingsFile,
+  renderShellArgv,
+} from "./sandbox/srt.js";
 import { getShellConfig, sanitizeBinaryOutput } from "./shell-utils.js";
 
 // Sanitize inherited host env before merge so dangerous variables from process.env
@@ -385,6 +390,28 @@ export async function runExecProcess(opts: {
       ? Math.floor(opts.timeoutSec * 1000)
       : undefined;
 
+  const srtSettings =
+    opts.sandbox?.backend === "anthropic-sandbox-runtime"
+      ? await createSandboxSrtSettingsFile({
+          sandbox: {
+            workspaceDir: opts.sandbox.workspaceDir,
+            agentWorkspaceDir: opts.sandbox.agentWorkspaceDir,
+            workspaceAccess: opts.sandbox.workspaceAccess,
+            docker: {
+              image: "",
+              containerPrefix: "",
+              workdir: opts.sandbox.containerWorkdir,
+              readOnlyRoot: true,
+              tmpfs: [],
+              network: "none",
+              capDrop: [],
+              binds: opts.sandbox.binds,
+            },
+            srt: opts.sandbox.srt,
+          },
+        })
+      : null;
+
   const spawnSpec:
     | {
         mode: "child";
@@ -400,6 +427,31 @@ export async function runExecProcess(opts: {
         stdinMode: "pipe-open";
       } = (() => {
     if (opts.sandbox) {
+      if (opts.sandbox.backend === "anthropic-sandbox-runtime") {
+        const { shell, args: shellArgs } = getShellConfig();
+        const childArgv = buildSandboxSrtExecArgv({
+          command: execCommand,
+          settingsPath: srtSettings?.settingsPath ?? "",
+          shell,
+          shellArgs,
+          srtCommand: opts.sandbox.srt.command,
+        });
+        if (opts.usePty) {
+          return {
+            mode: "pty" as const,
+            ptyCommand: renderShellArgv(childArgv),
+            childFallbackArgv: childArgv,
+            env: shellRuntimeEnv,
+            stdinMode: "pipe-open" as const,
+          };
+        }
+        return {
+          mode: "child" as const,
+          argv: childArgv,
+          env: shellRuntimeEnv,
+          stdinMode: "pipe-closed" as const,
+        };
+      }
       return {
         mode: "child" as const,
         argv: [
@@ -584,6 +636,11 @@ export async function runExecProcess(opts: {
         timedOut: false,
         reason: message,
       };
+    })
+    .finally(async () => {
+      if (srtSettings) {
+        await srtSettings.cleanup();
+      }
     });
 
   return {

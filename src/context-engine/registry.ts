@@ -13,6 +13,11 @@ type RegisterContextEngineForOwnerOptions = {
   allowSameOwnerRefresh?: boolean;
 };
 
+type RegisterContextEngineOptions = {
+  owner?: string;
+  allowSameOwnerRefresh?: boolean;
+};
+
 // ---------------------------------------------------------------------------
 // Registry (module-level singleton)
 // ---------------------------------------------------------------------------
@@ -93,8 +98,14 @@ export function registerContextEngineForOwner(
 export function registerContextEngine(
   id: string,
   factory: ContextEngineFactory,
+  opts?: RegisterContextEngineOptions,
 ): ContextEngineRegistrationResult {
-  return registerContextEngineForOwner(id, factory, PUBLIC_CONTEXT_ENGINE_OWNER);
+  return registerContextEngineForOwner(
+    id,
+    factory,
+    opts?.owner ?? PUBLIC_CONTEXT_ENGINE_OWNER,
+    opts?.owner ? { allowSameOwnerRefresh: opts.allowSameOwnerRefresh ?? true } : undefined,
+  );
 }
 
 /**

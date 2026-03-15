@@ -49,6 +49,7 @@ export function resolveSandboxRuntimeStatus(params: {
   agentId: string;
   sessionKey: string;
   mainSessionKey: string;
+  backend: SandboxConfig["backend"];
   mode: SandboxConfig["mode"];
   sandboxed: boolean;
   toolPolicy: SandboxToolPolicyResolved;
@@ -72,6 +73,7 @@ export function resolveSandboxRuntimeStatus(params: {
     agentId,
     sessionKey,
     mainSessionKey,
+    backend: sandboxCfg.backend,
     mode: sandboxCfg.mode,
     sandboxed,
     toolPolicy: resolveSandboxToolPolicyForAgent(cfg, agentId),

@@ -3,6 +3,7 @@ import {
   DANGEROUS_SANDBOX_DOCKER_BOOLEAN_KEYS,
   resolveSandboxBrowserConfig,
   resolveSandboxDockerConfig,
+  resolveSandboxConfigForAgent,
 } from "../agents/sandbox/config.js";
 import { validateConfigObject } from "./config.js";
 
@@ -176,6 +177,65 @@ describe("sandbox docker config", () => {
       },
     });
     expect(res.ok).toBe(false);
+  });
+
+  it("accepts anthropic-sandbox-runtime backend config", () => {
+    const res = validateConfigObject({
+      agents: {
+        defaults: {
+          sandbox: {
+            backend: "anthropic-sandbox-runtime",
+            srt: {
+              command: "/usr/local/bin/srt",
+              network: {
+                allowedDomains: ["api.github.com"],
+              },
+              filesystem: {
+                denyRead: ["~/.ssh"],
+                allowWrite: ["."],
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.config.agents?.defaults?.sandbox?.backend).toBe("anthropic-sandbox-runtime");
+      expect(res.config.agents?.defaults?.sandbox?.srt?.command).toBe("/usr/local/bin/srt");
+      expect(res.config.agents?.defaults?.sandbox?.srt?.network?.allowedDomains).toEqual([
+        "api.github.com",
+      ]);
+    }
+  });
+
+  it("defaults sandbox backend to docker and srt command to srt", () => {
+    const resolvedDocker = resolveSandboxConfigForAgent(
+      {
+        agents: {
+          defaults: {
+            sandbox: {},
+          },
+        },
+      },
+      "main",
+    );
+    expect(resolvedDocker.backend).toBe("docker");
+
+    const resolvedSrt = resolveSandboxConfigForAgent(
+      {
+        agents: {
+          defaults: {
+            sandbox: {
+              backend: "anthropic-sandbox-runtime",
+            },
+          },
+        },
+      },
+      "main",
+    );
+    expect(resolvedSrt.backend).toBe("anthropic-sandbox-runtime");
+    expect(resolvedSrt.srt?.command).toBe("srt");
   });
 });
 
