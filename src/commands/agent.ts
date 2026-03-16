@@ -39,6 +39,7 @@ import {
 import { prepareSessionManagerForRun } from "../agents/pi-embedded-runner/session-manager-init.js";
 import { runEmbeddedPiAgent } from "../agents/pi-embedded.js";
 import { buildWorkspaceSkillSnapshot } from "../agents/skills.js";
+import { matchesSkillFilter } from "../agents/skills/filter.js";
 import { getSkillsSnapshotVersion } from "../agents/skills/refresh.js";
 import { normalizeSpawnedRunMetadata } from "../agents/spawned-context.js";
 import { resolveAgentTimeoutMs } from "../agents/timeout.js";
@@ -873,10 +874,13 @@ async function agentCommandInternal(
       });
     }
 
-    const needsSkillsSnapshot = isNewSession || !sessionEntry?.skillsSnapshot;
-    const skillsSnapshotVersion = getSkillsSnapshotVersion(workspaceDir);
+    const skillsSnapshotVersion = Math.max(1, getSkillsSnapshotVersion(workspaceDir));
     const skillFilter = resolveAgentSkillsFilter(cfg, sessionAgentId);
-    const skillsSnapshot = needsSkillsSnapshot
+    const shouldRefreshSkillsSnapshot =
+      !sessionEntry?.skillsSnapshot ||
+      (sessionEntry.skillsSnapshot.version ?? 0) < skillsSnapshotVersion ||
+      !matchesSkillFilter(sessionEntry.skillsSnapshot.skillFilter, skillFilter);
+    const skillsSnapshot = shouldRefreshSkillsSnapshot
       ? buildWorkspaceSkillSnapshot(workspaceDir, {
           config: cfg,
           eligibility: { remote: getRemoteSkillEligibility() },
@@ -885,7 +889,12 @@ async function agentCommandInternal(
         })
       : sessionEntry?.skillsSnapshot;
 
-    if (skillsSnapshot && sessionStore && sessionKey && needsSkillsSnapshot) {
+    if (
+      skillsSnapshot &&
+      sessionStore &&
+      sessionKey &&
+      (isNewSession || shouldRefreshSkillsSnapshot)
+    ) {
       const current = sessionEntry ?? {
         sessionId,
         updatedAt: Date.now(),

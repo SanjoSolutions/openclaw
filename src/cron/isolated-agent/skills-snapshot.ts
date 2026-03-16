@@ -17,7 +17,7 @@ export function resolveCronSkillsSnapshot(params: {
     return params.existingSnapshot ?? { prompt: "", skills: [] };
   }
 
-  const snapshotVersion = getSkillsSnapshotVersion(params.workspaceDir);
+  const snapshotVersion = Math.max(1, getSkillsSnapshotVersion(params.workspaceDir));
   const skillFilter = resolveAgentSkillsFilter(params.config, params.agentId);
   const existingSnapshot = params.existingSnapshot;
   const shouldRefresh =
