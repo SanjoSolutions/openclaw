@@ -14,6 +14,7 @@
 #   Slim (bookworm-slim):    docker build --build-arg OPENCLAW_VARIANT=slim .
 ARG OPENCLAW_EXTENSIONS=""
 ARG OPENCLAW_VARIANT=default
+ARG GOGCLI_VERSION=0.12.0
 ARG OPENCLAW_NODE_BOOKWORM_IMAGE="node:24-bookworm@sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
 ARG OPENCLAW_NODE_BOOKWORM_DIGEST="sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
 ARG OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE="node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
@@ -135,6 +136,30 @@ RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,shar
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       procps hostname curl git lsof openssl
+
+# Provide a fallback Git identity so containerized agent commits work out of the box.
+# Repo-local or user-global Git config still overrides these system defaults.
+RUN git config --system user.name "OpenClaw" && \
+    git config --system user.email "openclaw@example.com"
+
+# Install a pinned gogcli release asset and verify its checksum.
+ARG GOGCLI_VERSION
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64|arm64) ;; \
+      *) echo "Unsupported architecture for gogcli release: $arch" >&2; exit 1 ;; \
+    esac; \
+    asset="gogcli_${GOGCLI_VERSION}_linux_${arch}.tar.gz"; \
+    release_base="https://github.com/steipete/gogcli/releases/download/v${GOGCLI_VERSION}"; \
+    curl -fsSL -o /tmp/gogcli.tgz "${release_base}/${asset}"; \
+    curl -fsSL -o /tmp/checksums.txt "${release_base}/checksums.txt"; \
+    expected_sha="$(grep -F "  ${asset}" /tmp/checksums.txt | awk '{print $1}')"; \
+    [ -n "$expected_sha" ]; \
+    printf '%s  %s\n' "$expected_sha" /tmp/gogcli.tgz | sha256sum -c -; \
+    tar -xzf /tmp/gogcli.tgz -C /usr/local/bin gog; \
+    chmod +x /usr/local/bin/gog; \
+    rm -f /tmp/gogcli.tgz /tmp/checksums.txt
 
 RUN chown node:node /app
 

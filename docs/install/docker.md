@@ -76,6 +76,11 @@ Optional env vars:
 - `OPENCLAW_BROWSER_RENDERER_PROCESS_LIMIT=<N>` — set Chromium renderer process
   limit; set to `0` to skip the flag and use Chromium default behavior.
 
+The default Docker image already includes `gog` from the published
+[`steipete/gogcli` GitHub release](https://github.com/steipete/gogcli/releases),
+so Gmail hooks and `gog`-backed skills do not need a separate in-container
+install step.
+
 After it finishes:
 
 - Open `http://127.0.0.1:18789/` in your browser.
@@ -465,6 +470,66 @@ If you pick OpenAI Codex OAuth in the wizard, it opens a browser URL and tries
 to capture a callback on `http://127.0.0.1:1455/auth/callback`. In Docker or
 headless setups that callback can show a browser error. Copy the full redirect
 URL you land on and paste it back into the wizard to finish auth.
+
+### Codex CLI auth inside containers
+
+If you want containerized agent runs to use Codex CLI auth, sign in inside a
+running container instead of relying on host auth:
+
+```bash
+docker compose exec openclaw-gateway codex login --device-auth
+```
+
+`--device-auth` is the most reliable choice for headless Docker setups because
+it does not depend on the container receiving a browser callback.
+
+If your Docker setup persists `/home/node` (for example via
+`OPENCLAW_HOME_VOLUME`) or mounts `/home/node/.codex`, the login survives
+container recreation. Otherwise, you will need to authenticate again after the
+container is recreated.
+
+### gog auth inside containers
+
+The default Docker image includes `gog` from the published
+`steipete/gogcli` GitHub release. For a headless Docker setup, use the manual
+auth flow so the browser step can finish outside the container.
+
+First, store your Google OAuth client credentials inside the container:
+
+```bash
+docker compose exec openclaw-gateway gog auth credentials /path/to/client_secret.json
+```
+
+Then authorize the account with read-only Gmail, Calendar, and Tasks access:
+
+```bash
+docker compose exec openclaw-gateway gog auth add you@gmail.com \
+  --services gmail,calendar,tasks \
+  --readonly \
+  --manual
+```
+
+`--manual` prints an auth URL. Open it in your browser, approve access, then
+paste the full redirect URL back into the terminal when `gog` prompts for it.
+
+If `/home/node` or the relevant `gog` config/keyring paths are persisted, that
+authorization survives container recreation.
+
+### Git identity inside containers
+
+The Docker image ships with a fallback Git identity so agent commits do not
+fail on a fresh container:
+
+- `user.name=OpenClaw`
+- `user.email=openclaw@example.com`
+
+If you want your own commit identity instead, override it with normal Git
+config inside the repo or container:
+
+```bash
+git config user.name "Your Name"
+git config user.email "you@example.com"
+```
 
 ### Health checks
 
