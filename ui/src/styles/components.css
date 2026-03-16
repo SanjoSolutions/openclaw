@@ -1437,6 +1437,7 @@
 }
 
 .debug-run-log__session {
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel);
@@ -1483,6 +1484,7 @@
 }
 
 .debug-run-log__session-body {
+  min-width: 0;
   padding: 0 14px 14px;
   padding-left: calc(14px + (var(--debug-depth, 0) * 14px));
 }
@@ -1490,9 +1492,11 @@
 .debug-run-log__entries {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .debug-run-log__entry {
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
@@ -1528,7 +1532,12 @@
 
 .debug-run-log__entry-content {
   margin: 0;
+  width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .debug-run-log__events {

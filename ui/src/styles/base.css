@@ -74,6 +74,11 @@
   /* Grid */
   --grid-line: rgba(255, 255, 255, 0.03);
 
+  /* Scrollbars */
+  --scrollbar-track: color-mix(in srgb, var(--text) 6%, transparent);
+  --scrollbar-thumb: color-mix(in srgb, var(--text) 22%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--text) 34%, transparent);
+
   /* Theme transition */
   --theme-switch-x: 50%;
   --theme-switch-y: 50%;
@@ -176,6 +181,10 @@
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 12px var(--accent-glow);
 
   --grid-line: rgba(0, 0, 0, 0.04);
+
+  --scrollbar-track: color-mix(in srgb, var(--text) 8%, transparent);
+  --scrollbar-thumb: color-mix(in srgb, var(--text) 28%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--text) 40%, transparent);
 
   /* Light shadows - Subtle, clean */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -309,23 +318,30 @@ select {
   color: var(--text-strong);
 }
 
-/* Scrollbar styling - Minimal, barely visible */
+/* Scrollbar styling */
+* {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--scrollbar-thumb);
   border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
 }
 
 /* Animations - Polished with spring feel */
