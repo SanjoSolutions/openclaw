@@ -1,0 +1,122 @@
+# syntax=docker/dockerfile:1.9
+
+FROM golang:1.26-trixie AS go-toolchain
+FROM rust:1.88-trixie AS rust-toolchain
+
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS openviking-builder
+
+ARG OPENVIKING_VERSION=0.0.0
+
+COPY --from=go-toolchain /usr/local/go /usr/local/go
+COPY --from=rust-toolchain /usr/local/cargo /usr/local/cargo
+COPY --from=rust-toolchain /usr/local/rustup /usr/local/rustup
+
+ENV CARGO_HOME=/usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV PATH="/usr/local/cargo/bin:/usr/local/go/bin:${PATH}"
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_OPENVIKING=${OPENVIKING_VERSION}
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV UV_NO_DEV=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build/openviking
+
+COPY Cargo.toml Cargo.lock ./
+COPY MANIFEST.in README.md pyproject.toml setup.py uv.lock ./
+COPY crates/ crates/
+COPY openviking/ openviking/
+COPY openviking_cli/ openviking_cli/
+COPY src/ src/
+COPY third_party/ third_party/
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-editable
+
+FROM node:24-trixie
+
+ARG CODEX_VERSION=0.114.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    libstdc++6 \
+    python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/bin/python3 /usr/local/bin/python3
+
+RUN npm install -g "@openai/codex@${CODEX_VERSION}"
+
+COPY --from=openviking-builder /build/openviking/.venv /opt/openviking-venv
+
+ENV PATH="/opt/openviking-venv/bin:${PATH}"
+ENV HOME=/home/node
+
+RUN cat <<'EOF' >/usr/local/bin/openviking-entrypoint.sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE_CONFIG="${OPENVIKING_CONFIG:-/home/node/.openviking/ov.conf}"
+RUNTIME_CONFIG="${OPENVIKING_RUNTIME_CONFIG:-/tmp/ov.docker.conf}"
+OPENVIKING_HOST="${OPENVIKING_HOST:-0.0.0.0}"
+OPENVIKING_PORT="${OPENVIKING_PORT:-1933}"
+OPENVIKING_WORKSPACE="${OPENVIKING_WORKSPACE:-/home/node/.openviking/workspace}"
+OPENVIKING_ROOT_API_KEY="${OPENVIKING_ROOT_API_KEY:-}"
+
+if [[ ! -f "$SOURCE_CONFIG" ]]; then
+  echo "Missing OpenViking config: $SOURCE_CONFIG" >&2
+  exit 1
+fi
+
+python3 - "$SOURCE_CONFIG" "$RUNTIME_CONFIG" "$OPENVIKING_WORKSPACE" "$OPENVIKING_ROOT_API_KEY" <<'PY'
+import json
+import sys
+
+source_path, runtime_path, workspace_path, root_api_key = sys.argv[1:5]
+
+with open(source_path, "r", encoding="utf-8") as f:
+    cfg = json.load(f)
+
+server = cfg.setdefault("server", {})
+server["host"] = "0.0.0.0"
+if root_api_key:
+    server["root_api_key"] = root_api_key
+
+storage = cfg.setdefault("storage", {})
+storage["workspace"] = workspace_path
+
+embedding = cfg.get("embedding")
+if isinstance(embedding, dict):
+    dense = embedding.get("dense")
+    if isinstance(dense, dict):
+        dense.pop("project", None)
+
+vlm = cfg.setdefault("vlm", {})
+vlm.pop("codex_executable", None)
+vlm.pop("codex_timeout_seconds", None)
+
+with open(runtime_path, "w", encoding="utf-8") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+PY
+
+exec /opt/openviking-venv/bin/python3 -m openviking_cli.server_bootstrap \
+  --config "$RUNTIME_CONFIG" \
+  --host "$OPENVIKING_HOST" \
+  --port "$OPENVIKING_PORT"
+EOF
+
+RUN chmod 755 /usr/local/bin/openviking-entrypoint.sh && \
+    mkdir -p /home/node && \
+    chown node:node /home/node
+
+USER node
+WORKDIR /home/node
+
+ENTRYPOINT ["/usr/local/bin/openviking-entrypoint.sh"]
