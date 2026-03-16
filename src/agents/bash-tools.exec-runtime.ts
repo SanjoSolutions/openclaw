@@ -411,6 +411,12 @@ export async function runExecProcess(opts: {
           },
         })
       : null;
+  if (srtSettings?.shellPath) {
+    applyShellPath(shellRuntimeEnv, srtSettings.shellPath);
+  }
+  if (srtSettings?.env) {
+    Object.assign(shellRuntimeEnv, srtSettings.env);
+  }
 
   const spawnSpec:
     | {
