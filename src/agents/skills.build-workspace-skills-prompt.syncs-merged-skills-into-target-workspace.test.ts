@@ -18,6 +18,14 @@ async function pathExists(filePath: string): Promise<boolean> {
 let fixtureRoot = "";
 let fixtureCount = 0;
 let syncSourceTemplateDir = "";
+const mirroredBundledSkillPath = (workspaceDir: string) =>
+  path.join(
+    workspaceDir,
+    ".openclaw-synced-skills",
+    "openclaw-bundled",
+    "bundled-skill",
+    "SKILL.md",
+  );
 
 async function createCaseDir(prefix: string): Promise<string> {
   const dir = path.join(fixtureRoot, `${prefix}-${fixtureCount++}`);
@@ -64,6 +72,11 @@ beforeAll(async () => {
     dir: path.join(syncSourceTemplateDir, ".bundled", "demo-skill"),
     name: "demo-skill",
     description: "Bundled version",
+  });
+  await writeSkill({
+    dir: path.join(syncSourceTemplateDir, ".bundled", "bundled-skill"),
+    name: "bundled-skill",
+    description: "Bundled only",
   });
   await writeSkill({
     dir: path.join(syncSourceTemplateDir, ".managed", "demo-skill"),
@@ -121,6 +134,109 @@ describe("buildWorkspaceSkillsPrompt", () => {
     expect(prompt).not.toContain("Bundled version");
     expect(prompt).not.toContain("Extra version");
     expect(prompt.replaceAll("\\", "/")).toContain("demo-skill/SKILL.md");
+  });
+
+  it("syncs merged skills into the source workspace when source and target match", async () => {
+    const workspace = await cloneSourceTemplate();
+    const extraDir = path.join(workspace, ".extra");
+    const bundledDir = path.join(workspace, ".bundled");
+    const managedDir = path.join(workspace, ".managed");
+
+    await withEnv({ HOME: workspace, PATH: "" }, () =>
+      syncSkillsToWorkspace({
+        sourceWorkspaceDir: workspace,
+        targetWorkspaceDir: workspace,
+        config: { skills: { load: { extraDirs: [extraDir] } } },
+        bundledSkillsDir: bundledDir,
+        managedSkillsDir: managedDir,
+      }),
+    );
+
+    const prompt = buildPrompt(workspace, {
+      bundledSkillsDir: bundledDir,
+      managedSkillsDir: managedDir,
+    });
+
+    await expect(
+      fs.readFile(path.join(workspace, "skills", "demo-skill", "SKILL.md"), "utf-8"),
+    ).resolves.toContain("Workspace version");
+    await expect(fs.readFile(mirroredBundledSkillPath(workspace), "utf-8")).resolves.toContain(
+      "Bundled only",
+    );
+    expect(prompt).toContain("Workspace version");
+    expect(prompt).toContain("Bundled only");
+    expect(prompt.replaceAll("\\", "/")).toContain(
+      "/.openclaw-synced-skills/openclaw-bundled/bundled-skill/SKILL.md",
+    );
+    expect(prompt.replaceAll("\\", "/")).toContain("/skills/demo-skill/SKILL.md");
+  });
+
+  it("keeps bundled allowlist filtering intact after self-sync", async () => {
+    const workspace = await cloneSourceTemplate();
+    const extraDir = path.join(workspace, ".extra");
+    const bundledDir = path.join(workspace, ".bundled");
+    const managedDir = path.join(workspace, ".managed");
+    const config = {
+      skills: {
+        allowBundled: ["missing-skill"],
+        load: { extraDirs: [extraDir] },
+      },
+    };
+
+    const beforePrompt = buildPrompt(workspace, {
+      config,
+      bundledSkillsDir: bundledDir,
+      managedSkillsDir: managedDir,
+    });
+
+    expect(beforePrompt).toContain("Workspace version");
+    expect(beforePrompt).not.toContain("Bundled only");
+
+    await withEnv({ HOME: workspace, PATH: "" }, () =>
+      syncSkillsToWorkspace({
+        sourceWorkspaceDir: workspace,
+        targetWorkspaceDir: workspace,
+        config,
+        bundledSkillsDir: bundledDir,
+        managedSkillsDir: managedDir,
+      }),
+    );
+
+    const afterPrompt = buildPrompt(workspace, {
+      config,
+      bundledSkillsDir: bundledDir,
+      managedSkillsDir: managedDir,
+    });
+
+    expect(afterPrompt).toContain("Workspace version");
+    expect(afterPrompt).not.toContain("Bundled only");
+  });
+
+  it("preserves non-skill files in skills/ during self-sync", async () => {
+    const workspace = await cloneSourceTemplate();
+    const extraDir = path.join(workspace, ".extra");
+    const bundledDir = path.join(workspace, ".bundled");
+    const managedDir = path.join(workspace, ".managed");
+    const readmePath = path.join(workspace, "skills", "README.md");
+    const helpersDir = path.join(workspace, "skills", "shared-assets");
+    const helperFile = path.join(helpersDir, "notes.txt");
+
+    await fs.writeFile(readmePath, "Keep me around\n", "utf-8");
+    await fs.mkdir(helpersDir, { recursive: true });
+    await fs.writeFile(helperFile, "Shared helper\n", "utf-8");
+
+    await withEnv({ HOME: workspace, PATH: "" }, () =>
+      syncSkillsToWorkspace({
+        sourceWorkspaceDir: workspace,
+        targetWorkspaceDir: workspace,
+        config: { skills: { load: { extraDirs: [extraDir] } } },
+        bundledSkillsDir: bundledDir,
+        managedSkillsDir: managedDir,
+      }),
+    );
+
+    await expect(fs.readFile(readmePath, "utf-8")).resolves.toBe("Keep me around\n");
+    await expect(fs.readFile(helperFile, "utf-8")).resolves.toBe("Shared helper\n");
   });
   it.runIf(process.platform !== "win32")(
     "does not sync workspace skills that resolve outside the source workspace root",

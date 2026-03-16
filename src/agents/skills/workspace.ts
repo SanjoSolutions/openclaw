@@ -32,6 +32,14 @@ import type {
 const fsp = fs.promises;
 const skillsLogger = createSubsystemLogger("skills");
 const skillCommandDebugOnce = new Set<string>();
+const MIRRORED_WORKSPACE_SKILLS_DIRNAME = ".openclaw-synced-skills";
+const MIRRORED_SKILL_SOURCES = [
+  "openclaw-extra",
+  "openclaw-bundled",
+  "openclaw-managed",
+  "agents-skills-personal",
+  "agents-skills-project",
+] as const;
 
 /**
  * Replace the user's home directory prefix with `~` in skill file paths
@@ -445,6 +453,12 @@ function loadSkillEntries(
   const managedSkillsDir = opts?.managedSkillsDir ?? path.join(CONFIG_DIR, "skills");
   const workspaceSkillsDir = path.resolve(workspaceDir, "skills");
   const bundledSkillsDir = opts?.bundledSkillsDir ?? resolveBundledSkillsDir();
+  const mirroredWorkspaceSkillsDirs = new Map<(typeof MIRRORED_SKILL_SOURCES)[number], string>(
+    MIRRORED_SKILL_SOURCES.map((source) => [
+      source,
+      resolveMirroredWorkspaceSkillsDir({ workspaceDir, source }),
+    ]),
+  );
   const extraDirsRaw = opts?.config?.skills?.load?.extraDirs ?? [];
   const extraDirs = extraDirsRaw
     .map((d) => (typeof d === "string" ? d.trim() : ""))
@@ -468,8 +482,16 @@ function loadSkillEntries(
       source: "openclaw-extra",
     });
   });
+  const mirroredExtraSkills = loadSkills({
+    dir: mirroredWorkspaceSkillsDirs.get("openclaw-extra") ?? "",
+    source: "openclaw-extra",
+  });
   const managedSkills = loadSkills({
     dir: managedSkillsDir,
+    source: "openclaw-managed",
+  });
+  const mirroredManagedSkills = loadSkills({
+    dir: mirroredWorkspaceSkillsDirs.get("openclaw-managed") ?? "",
     source: "openclaw-managed",
   });
   const personalAgentsSkillsDir = path.resolve(os.homedir(), ".agents", "skills");
@@ -477,14 +499,26 @@ function loadSkillEntries(
     dir: personalAgentsSkillsDir,
     source: "agents-skills-personal",
   });
+  const mirroredPersonalAgentsSkills = loadSkills({
+    dir: mirroredWorkspaceSkillsDirs.get("agents-skills-personal") ?? "",
+    source: "agents-skills-personal",
+  });
   const projectAgentsSkillsDir = path.resolve(workspaceDir, ".agents", "skills");
   const projectAgentsSkills = loadSkills({
     dir: projectAgentsSkillsDir,
     source: "agents-skills-project",
   });
+  const mirroredProjectAgentsSkills = loadSkills({
+    dir: mirroredWorkspaceSkillsDirs.get("agents-skills-project") ?? "",
+    source: "agents-skills-project",
+  });
   const workspaceSkills = loadSkills({
     dir: workspaceSkillsDir,
     source: "openclaw-workspace",
+  });
+  const mirroredBundledSkills = loadSkills({
+    dir: mirroredWorkspaceSkillsDirs.get("openclaw-bundled") ?? "",
+    source: "openclaw-bundled",
   });
 
   const merged = new Map<string, Skill>();
@@ -492,16 +526,31 @@ function loadSkillEntries(
   for (const skill of extraSkills) {
     merged.set(skill.name, skill);
   }
+  for (const skill of mirroredExtraSkills) {
+    merged.set(skill.name, skill);
+  }
   for (const skill of bundledSkills) {
+    merged.set(skill.name, skill);
+  }
+  for (const skill of mirroredBundledSkills) {
     merged.set(skill.name, skill);
   }
   for (const skill of managedSkills) {
     merged.set(skill.name, skill);
   }
+  for (const skill of mirroredManagedSkills) {
+    merged.set(skill.name, skill);
+  }
   for (const skill of personalAgentsSkills) {
     merged.set(skill.name, skill);
   }
+  for (const skill of mirroredPersonalAgentsSkills) {
+    merged.set(skill.name, skill);
+  }
   for (const skill of projectAgentsSkills) {
+    merged.set(skill.name, skill);
+  }
+  for (const skill of mirroredProjectAgentsSkills) {
     merged.set(skill.name, skill);
   }
   for (const skill of workspaceSkills) {
@@ -707,6 +756,23 @@ function resolveSyncedSkillDestinationPath(params: {
   }).resolved;
 }
 
+function resolveMirroredWorkspaceSkillsDir(params: {
+  workspaceDir: string;
+  source: (typeof MIRRORED_SKILL_SOURCES)[number];
+}): string {
+  return path.join(params.workspaceDir, MIRRORED_WORKSPACE_SKILLS_DIRNAME, params.source);
+}
+
+function resolveWorkspaceRealPath(workspaceDir: string): string {
+  return tryRealpath(workspaceDir) ?? path.resolve(workspaceDir);
+}
+
+function shouldMirrorEntryIntoWorkspace(entry: SkillEntry, workspaceDir: string): boolean {
+  const skillBaseDir = tryRealpath(entry.skill.baseDir) ?? path.resolve(entry.skill.baseDir);
+  const workspaceRealPath = resolveWorkspaceRealPath(workspaceDir);
+  return !isPathInside(skillBaseDir, workspaceRealPath);
+}
+
 export async function syncSkillsToWorkspace(params: {
   sourceWorkspaceDir: string;
   targetWorkspaceDir: string;
@@ -716,12 +782,16 @@ export async function syncSkillsToWorkspace(params: {
 }) {
   const sourceDir = resolveUserPath(params.sourceWorkspaceDir);
   const targetDir = resolveUserPath(params.targetWorkspaceDir);
-  if (sourceDir === targetDir) {
-    return;
-  }
+  const sourceRealPath = resolveWorkspaceRealPath(sourceDir);
+  const targetRealPath = resolveWorkspaceRealPath(targetDir);
+  const isSelfSync = sourceRealPath === targetRealPath;
 
   await serializeByKey(`syncSkills:${targetDir}`, async () => {
     const targetSkillsDir = path.join(targetDir, "skills");
+    const mirroredSkillsRoot = path.join(targetDir, MIRRORED_WORKSPACE_SKILLS_DIRNAME);
+    const stagingRoot = await fsp.mkdtemp(path.join(targetDir, ".skills-sync-"));
+    const stagedSkillsDir = path.join(stagingRoot, "skills");
+    const stagedMirroredSkillsRoot = path.join(stagingRoot, MIRRORED_WORKSPACE_SKILLS_DIRNAME);
 
     const entries = loadSkillEntries(sourceDir, {
       config: params.config,
@@ -729,38 +799,107 @@ export async function syncSkillsToWorkspace(params: {
       bundledSkillsDir: params.bundledSkillsDir,
     });
 
-    await fsp.rm(targetSkillsDir, { recursive: true, force: true });
-    await fsp.mkdir(targetSkillsDir, { recursive: true });
+    try {
+      if (isSelfSync) {
+        const usedDirNamesBySource = new Map<string, Set<string>>();
+        await fsp.mkdir(stagedMirroredSkillsRoot, { recursive: true });
 
-    const usedDirNames = new Set<string>();
-    for (const entry of entries) {
-      let dest: string | null = null;
-      try {
-        dest = resolveSyncedSkillDestinationPath({
-          targetSkillsDir,
-          entry,
-          usedDirNames,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : JSON.stringify(error);
-        skillsLogger.warn(`Failed to resolve safe destination for ${entry.skill.name}: ${message}`);
-        continue;
+        for (const entry of entries) {
+          if (!shouldMirrorEntryIntoWorkspace(entry, targetDir)) {
+            continue;
+          }
+          if (
+            !MIRRORED_SKILL_SOURCES.includes(
+              entry.skill.source as (typeof MIRRORED_SKILL_SOURCES)[number],
+            )
+          ) {
+            continue;
+          }
+
+          const source = entry.skill.source as (typeof MIRRORED_SKILL_SOURCES)[number];
+          const stagedSourceDir = resolveMirroredWorkspaceSkillsDir({
+            workspaceDir: stagingRoot,
+            source,
+          });
+          let usedDirNames = usedDirNamesBySource.get(source);
+          if (!usedDirNames) {
+            usedDirNames = new Set<string>();
+            usedDirNamesBySource.set(source, usedDirNames);
+          }
+          await fsp.mkdir(stagedSourceDir, { recursive: true });
+
+          let dest: string | null = null;
+          try {
+            dest = resolveSyncedSkillDestinationPath({
+              targetSkillsDir: stagedSourceDir,
+              entry,
+              usedDirNames,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : JSON.stringify(error);
+            skillsLogger.warn(
+              `Failed to resolve safe mirror destination for ${entry.skill.name}: ${message}`,
+            );
+            continue;
+          }
+          if (!dest) {
+            skillsLogger.warn(
+              `Failed to resolve safe mirror destination for ${entry.skill.name}: invalid source directory name`,
+            );
+            continue;
+          }
+          try {
+            await fsp.cp(entry.skill.baseDir, dest, {
+              recursive: true,
+              force: true,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : JSON.stringify(error);
+            skillsLogger.warn(`Failed to mirror ${entry.skill.name} into workspace: ${message}`);
+          }
+        }
+        await fsp.rm(mirroredSkillsRoot, { recursive: true, force: true });
+        await fsp.rename(stagedMirroredSkillsRoot, mirroredSkillsRoot);
+      } else {
+        await fsp.mkdir(stagedSkillsDir, { recursive: true });
+
+        const usedDirNames = new Set<string>();
+        for (const entry of entries) {
+          let dest: string | null = null;
+          try {
+            dest = resolveSyncedSkillDestinationPath({
+              targetSkillsDir: stagedSkillsDir,
+              entry,
+              usedDirNames,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : JSON.stringify(error);
+            skillsLogger.warn(
+              `Failed to resolve safe destination for ${entry.skill.name}: ${message}`,
+            );
+            continue;
+          }
+          if (!dest) {
+            skillsLogger.warn(
+              `Failed to resolve safe destination for ${entry.skill.name}: invalid source directory name`,
+            );
+            continue;
+          }
+          try {
+            await fsp.cp(entry.skill.baseDir, dest, {
+              recursive: true,
+              force: true,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : JSON.stringify(error);
+            skillsLogger.warn(`Failed to copy ${entry.skill.name} to sandbox: ${message}`);
+          }
+        }
+        await fsp.rm(targetSkillsDir, { recursive: true, force: true });
+        await fsp.rename(stagedSkillsDir, targetSkillsDir);
       }
-      if (!dest) {
-        skillsLogger.warn(
-          `Failed to resolve safe destination for ${entry.skill.name}: invalid source directory name`,
-        );
-        continue;
-      }
-      try {
-        await fsp.cp(entry.skill.baseDir, dest, {
-          recursive: true,
-          force: true,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : JSON.stringify(error);
-        skillsLogger.warn(`Failed to copy ${entry.skill.name} to sandbox: ${message}`);
-      }
+    } finally {
+      await fsp.rm(stagingRoot, { recursive: true, force: true });
     }
   });
 }

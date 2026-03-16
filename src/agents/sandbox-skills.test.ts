@@ -21,6 +21,14 @@ vi.mock("./sandbox/prune.js", () => ({
 
 describe("sandbox skill mirroring", () => {
   let envSnapshot: ReturnType<typeof captureFullEnv>;
+  const mirroredBundledSkillPath = (workspaceDir: string) =>
+    path.join(
+      workspaceDir,
+      ".openclaw-synced-skills",
+      "openclaw-bundled",
+      "bundled-skill",
+      "SKILL.md",
+    );
 
   beforeEach(() => {
     envSnapshot = captureFullEnv();
@@ -30,9 +38,14 @@ describe("sandbox skill mirroring", () => {
     envSnapshot.restore();
   });
 
-  const runContext = async (workspaceAccess: "none" | "ro") => {
+  const runContext = async (workspaceAccess: "none" | "ro" | "rw") => {
     const bundledDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-bundled-skills-"));
     await fs.mkdir(bundledDir, { recursive: true });
+    await writeSkill({
+      dir: path.join(bundledDir, "bundled-skill"),
+      name: "bundled-skill",
+      description: "Bundled skill",
+    });
 
     process.env.OPENCLAW_BUNDLED_SKILLS_DIR = bundledDir;
 
@@ -65,14 +78,22 @@ describe("sandbox skill mirroring", () => {
     return { context, workspaceDir };
   };
 
-  it.each(["ro", "none"] as const)(
-    "copies skills into the sandbox when workspaceAccess is %s",
+  it.each(["rw", "ro", "none"] as const)(
+    "makes mirrored skills available when workspaceAccess is %s",
     async (workspaceAccess) => {
-      const { context } = await runContext(workspaceAccess);
+      const { context, workspaceDir } = await runContext(workspaceAccess);
 
       expect(context?.enabled).toBe(true);
-      const skillPath = path.join(context?.workspaceDir ?? "", "skills", "demo-skill", "SKILL.md");
-      await expect(fs.readFile(skillPath, "utf-8")).resolves.toContain("demo-skill");
+      const skillPath =
+        workspaceAccess === "rw"
+          ? mirroredBundledSkillPath(context?.workspaceDir ?? "")
+          : path.join(context?.workspaceDir ?? "", "skills", "bundled-skill", "SKILL.md");
+      await expect(fs.readFile(skillPath, "utf-8")).resolves.toContain("bundled-skill");
+      if (workspaceAccess === "rw") {
+        await expect(
+          fs.readFile(mirroredBundledSkillPath(workspaceDir), "utf-8"),
+        ).resolves.toContain("bundled-skill");
+      }
     },
     20_000,
   );
